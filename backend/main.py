@@ -67,6 +67,7 @@ async def get_dashboard():
         calendar_items = google_api.get_calendar_events()
         gmail_highlights = google_api.get_gmail_highlights()
     else:
+        print("WARNING: credentials.json missing. Using placeholders for Google data.")
         calendar_items = [{"summary": "Meeting placeholder (credentials.json missing)", "start": {"dateTime": "2023-01-01T00:00:00Z"}}]
 
     # 3. Fetch Environmental Data
