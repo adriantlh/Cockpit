@@ -20,45 +20,88 @@ interface EnvironmentalData {
   condition_code: number
 }
 
+interface MissionProfile {
+  title: string
+  type: string
+  duration_mins: number
+  distance_km: number
+  intensity_zone: string
+  briefing: string
+}
+
 interface DashboardData {
   countdown: Event[]
-  training_today: string
+  training_today: MissionProfile
   calendar_events: any[]
   gmail_highlights: { id: string; snippet: string }[]
   environmental: EnvironmentalData | null
 }
 
 const ScheduleItem = ({ event }: { event: any }) => {
-  const [viewMode, setViewMode] = useState<'time' | 'countdown'>('time');
   const eventDate = event.start?.dateTime ? new Date(event.start.dateTime) : (event.start?.date ? new Date(event.start.date) : null);
+  const isAllDay = !event.start?.dateTime;
+  const now = new Date();
   
-  const getCountdown = () => {
-    if (!eventDate) return 'N/A';
-    const diff = eventDate.getTime() - new Date().getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    if (hours < 0) return 'Started';
-    return `${hours}h ${mins}m to go`;
+  const diffMs = eventDate ? eventDate.getTime() - now.getTime() : 0;
+  const diffHours = diffMs / (1000 * 60 * 60);
+  const isUrgent = !isAllDay && diffHours > 0 && diffHours < 2;
+  const hasStarted = !isAllDay && diffMs < 0;
+
+  const getRelativeTime = () => {
+    if (isAllDay) return 'All Day';
+    if (hasStarted) return 'Active Now';
+    const hours = Math.floor(diffHours);
+    const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return hours > 0 ? `in ${hours}h ${mins}m` : `in ${mins}m`;
   };
 
   return (
     <article 
-      onClick={() => setViewMode(viewMode === 'time' ? 'countdown' : 'time')}
-      className="border-l-4 border-blue-600 dark:border-blue-500 pl-4 py-2 bg-blue-50/50 dark:bg-blue-900/10 rounded-r-xl cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group"
+      className={`relative group p-4 border-l-4 rounded-r-2xl transition-all duration-300 ${
+        isUrgent 
+          ? 'bg-amber-500/10 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.1)] ring-1 ring-amber-500/20' 
+          : hasStarted
+            ? 'bg-emerald-500/10 border-emerald-500 opacity-80'
+            : 'bg-surface-hover border-blue-500 hover:bg-surface'
+      }`}
     >
-      <div className="flex justify-between items-start mb-1">
-        <p className="text-sm font-bold leading-snug flex-1">{event.summary}</p>
-        <p className="text-[10px] font-mono text-blue-600/70 dark:text-blue-400/70 ml-2 uppercase">
-          {eventDate?.toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })}
-        </p>
+      <div className="flex justify-between items-start gap-4">
+        <div className="flex-1">
+          <h3 className={`text-sm font-black leading-tight mb-1 ${isUrgent ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'}`}>
+            {event.summary}
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono font-bold text-muted uppercase tracking-tighter">
+              {isAllDay ? 'Block' : eventDate?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            <span className="text-slate-300 dark:text-slate-700">|</span>
+            <span className={`text-[11px] font-mono font-black uppercase ${
+              isUrgent ? 'text-amber-500 animate-pulse' : hasStarted ? 'text-emerald-500' : 'text-blue-500'
+            }`}>
+              {getRelativeTime()}
+            </span>
+          </div>
+        </div>
+        
+        <div className="text-right">
+          <p className="text-[10px] font-black text-muted/50 uppercase tracking-widest leading-none">
+            {eventDate?.toLocaleDateString('en-SG', { day: '2-digit' })}
+          </p>
+          <p className="text-[10px] font-bold text-muted/50 uppercase tracking-tighter">
+            {eventDate?.toLocaleDateString('en-SG', { month: 'short' })}
+          </p>
+        </div>
       </div>
-      <p className="text-xs text-muted font-mono">
-        {viewMode === 'time' ? (
-          event.start?.dateTime ? new Date(event.start.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'All Day'
-        ) : (
-          <span className="text-blue-600 dark:text-blue-400 font-bold animate-pulse">{getCountdown()}</span>
-        )}
-      </p>
+
+      {/* Fuel Gauge (Progress bar for urgent items) */}
+      {isUrgent && (
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-amber-500/20 overflow-hidden rounded-b-2xl">
+          <div 
+            className="h-full bg-amber-500 transition-all duration-1000" 
+            style={{ width: `${Math.max(0, 100 - (diffHours * 50))}%` }}
+          />
+        </div>
+      )}
     </article>
   );
 };
@@ -88,6 +131,29 @@ function App() {
   useEffect(() => {
     fetchDashboard()
   }, [])
+
+  // Helper to group events
+  const groupedEvents = () => {
+    if (!data?.calendar_events) return { today: [], tomorrow: [], upcoming: [] };
+    const today = new Date().toDateString();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toDateString();
+
+    return data.calendar_events.reduce((acc: any, event: any) => {
+      const date = event.start?.dateTime ? new Date(event.start.dateTime) : (event.start?.date ? new Date(event.start.date) : null);
+      if (!date) return acc;
+      
+      const dateStr = date.toDateString();
+      if (dateStr === today) acc.today.push(event);
+      else if (dateStr === tomorrowStr) acc.tomorrow.push(event);
+      else acc.upcoming.push(event);
+      
+      return acc;
+    }, { today: [], tomorrow: [], upcoming: [] });
+  };
+
+  const groups = groupedEvents();
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -387,27 +453,96 @@ function App() {
                 <Activity className="text-emerald-600 dark:text-emerald-400 w-6 h-6" />
                 <h2 className="text-xl font-semibold uppercase tracking-tight text-emerald-700 dark:text-emerald-400">Today's Mission</h2>
               </div>
-              <div className="flex flex-col items-center justify-center py-10">
-                <p className="text-xs uppercase tracking-[0.3em] text-emerald-600/70 dark:text-emerald-500/70 mb-2 font-black">Current Objective</p>
-                <p className="text-5xl font-black text-foreground text-center mb-6 leading-tight tracking-tighter uppercase">{data?.training_today}</p>
-                <div className="flex gap-2 text-muted text-xs bg-background border border-border px-4 py-2 rounded-full font-mono uppercase tracking-wider">
-                  <Clock className="w-4 h-4" />
+              
+              <div className="flex flex-col h-full">
+                <div className="mb-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-emerald-600/70 dark:text-emerald-500/70 mb-1 font-black">Objective</p>
+                  <h3 className="text-3xl font-black text-foreground leading-tight tracking-tighter uppercase">{data?.training_today.title}</h3>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 mb-8">
+                  <div className="p-3 bg-surface-hover border border-border rounded-xl text-center">
+                    <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1">Time</p>
+                    <p className="text-xl font-black text-foreground">{data?.training_today.duration_mins}m</p>
+                  </div>
+                  <div className="p-3 bg-surface-hover border border-border rounded-xl text-center">
+                    <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1">Dist</p>
+                    <p className="text-xl font-black text-foreground">{data?.training_today.distance_km}km</p>
+                  </div>
+                  <div className="p-3 bg-surface-hover border border-border rounded-xl text-center">
+                    <p className="text-[10px] uppercase tracking-widest text-muted font-bold mb-1">Zone</p>
+                    <p className="text-sm font-black text-foreground leading-tight h-7 flex items-center justify-center">{data?.training_today.intensity_zone}</p>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50/50 dark:bg-emerald-900/10 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 mb-6">
+                  <p className="text-[10px] uppercase tracking-widest text-emerald-600 dark:text-emerald-400 font-black mb-3">Tactical Briefing</p>
+                  <p className="text-sm leading-relaxed text-foreground/90 italic">
+                    "{data?.training_today.briefing}"
+                  </p>
+                </div>
+
+                <div className="mt-auto flex gap-2 text-muted text-[10px] bg-background border border-border px-4 py-2 rounded-full font-mono uppercase tracking-wider justify-center">
+                  <Clock className="w-3 h-3" />
                   <span>Optimum Window: 07:00 - 08:30</span>
                 </div>
               </div>
             </section>
 
-            <section className="card shadow-md">
+            <section className="card shadow-md flex flex-col h-full overflow-hidden">
               <div className="flex items-center gap-3 mb-6 border-b border-border pb-3">
                 <Calendar className="text-blue-600 dark:text-blue-400 w-6 h-6" />
-                <h2 className="text-xl font-semibold uppercase tracking-tight">Schedule</h2>
+                <h2 className="text-xl font-semibold uppercase tracking-tight">Timeline</h2>
               </div>
-              <div className="space-y-4">
-                {data?.calendar_events.map((event, idx) => (
-                  <ScheduleItem key={idx} event={event} />
-                ))}
-                {(!data?.calendar_events || data.calendar_events.length === 0) && (
-                  <p className="text-muted italic text-center py-6">No meetings today.</p>
+              
+              <div className="space-y-8 overflow-y-auto pr-2 custom-scrollbar">
+                {/* Today */}
+                <div className="relative">
+                  <div className="sticky top-0 z-10 bg-surface/80 backdrop-blur-sm py-1 mb-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full animate-ping" />
+                      Today
+                    </p>
+                  </div>
+                  <div className="space-y-3 relative border-l border-slate-200 dark:border-slate-800 ml-1.5 pl-6">
+                    {groups.today.length > 0 ? (
+                      groups.today.map((event: any, idx: number) => <ScheduleItem key={`today-${idx}`} event={event} />)
+                    ) : (
+                      <p className="text-xs text-muted italic py-2">No missions today.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tomorrow */}
+                <div className="relative">
+                  <div className="sticky top-0 z-10 bg-surface/80 backdrop-blur-sm py-1 mb-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-muted rounded-full" />
+                      Tomorrow
+                    </p>
+                  </div>
+                  <div className="space-y-3 relative border-l border-slate-200 dark:border-slate-800 ml-1.5 pl-6">
+                    {groups.tomorrow.length > 0 ? (
+                      groups.tomorrow.map((event: any, idx: number) => <ScheduleItem key={`tmr-${idx}`} event={event} />)
+                    ) : (
+                      <p className="text-xs text-muted italic py-2">Clear horizon.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Upcoming */}
+                {groups.upcoming.length > 0 && (
+                  <div className="relative">
+                    <div className="sticky top-0 z-10 bg-surface/80 backdrop-blur-sm py-1 mb-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/50 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-muted/50 rounded-full" />
+                        Upcoming
+                      </p>
+                    </div>
+                    <div className="space-y-3 relative border-l border-slate-200 dark:border-slate-800 ml-1.5 pl-6">
+                      {groups.upcoming.map((event: any, idx: number) => <ScheduleItem key={`up-${idx}`} event={event} />)}
+                    </div>
+                  </div>
                 )}
               </div>
             </section>

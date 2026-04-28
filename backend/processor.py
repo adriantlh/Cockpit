@@ -18,7 +18,19 @@ def get_workout_for_day(training_plan, day_of_week):
     """
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     day_name = days[day_of_week]
-    return training_plan.get(day_name, "Rest Day")
+    workout = training_plan.get(day_name, "Rest Day")
+    
+    # If legacy string format, convert to simple object for frontend consistency
+    if isinstance(workout, str):
+        return {
+            "title": workout,
+            "type": "N/A",
+            "duration_mins": 0,
+            "distance_km": 0,
+            "intensity_zone": "N/A",
+            "briefing": "No detailed briefing available."
+        }
+    return workout
 
 def process_dashboard_data(events, calendar_items, gmail_items, training_plan, env_data=None):
     """Aggregates all data for the dashboard."""
@@ -79,8 +91,16 @@ def generate_training_context(db, calendar_items):
 
     context += "\n## Task\n"
     context += "Based on the performance and upcoming load, generate a 7-day training plan for NEXT week (Monday to Sunday).\n"
-    context += "Return ONLY a JSON object with days as keys and workout descriptions as values.\n"
-    context += "Example: {\"Monday\": \"Rest\", \"Tuesday\": \"5km Recovery Run\", ...}\n"
+    context += "Return ONLY a JSON object where each day is a key, and the value is an object with this structure:\n"
+    context += "{\n"
+    context += "  \"title\": \"Short Title (e.g. Threshold Run)\",\n"
+    context += "  \"type\": \"Run/Ride/Rest/Gym\",\n"
+    context += "  \"duration_mins\": 60,\n"
+    context += "  \"distance_km\": 10,\n"
+    context += "  \"intensity_zone\": \"e.g. Z4 (Threshold)\",\n"
+    context += "  \"briefing\": \"Specific instructions: warm up, intervals, cool down.\"\n"
+    context += "}\n"
+    context += "Example: {\"Monday\": {\"title\": \"Recovery Spin\", \"type\": \"Ride\", \"duration_mins\": 45, ...}, ...}\n"
 
     with open('training_context.md', 'w') as f:
         f.write(context)
