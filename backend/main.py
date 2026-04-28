@@ -28,7 +28,8 @@ try:
     else:
         # Fallback for local development if credentials aren't present yet
         initialize_app()
-    db = firestore.client()
+    # Explicitly specify the database ID 'cockpit'
+    db = firestore.client(database_id="cockpit")
 except Exception as e:
     print(f"Firestore initialization failed: {e}")
     db = None

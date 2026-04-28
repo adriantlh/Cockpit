@@ -28,6 +28,41 @@ interface DashboardData {
   environmental: EnvironmentalData | null
 }
 
+const ScheduleItem = ({ event }: { event: any }) => {
+  const [viewMode, setViewMode] = useState<'time' | 'countdown'>('time');
+  const eventDate = event.start?.dateTime ? new Date(event.start.dateTime) : (event.start?.date ? new Date(event.start.date) : null);
+  
+  const getCountdown = () => {
+    if (!eventDate) return 'N/A';
+    const diff = eventDate.getTime() - new Date().getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours < 0) return 'Started';
+    return `${hours}h ${mins}m to go`;
+  };
+
+  return (
+    <article 
+      onClick={() => setViewMode(viewMode === 'time' ? 'countdown' : 'time')}
+      className="border-l-4 border-blue-600 dark:border-blue-500 pl-4 py-2 bg-blue-50/50 dark:bg-blue-900/10 rounded-r-xl cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors group"
+    >
+      <div className="flex justify-between items-start mb-1">
+        <p className="text-sm font-bold leading-snug flex-1">{event.summary}</p>
+        <p className="text-[10px] font-mono text-blue-600/70 dark:text-blue-400/70 ml-2 uppercase">
+          {eventDate?.toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })}
+        </p>
+      </div>
+      <p className="text-xs text-muted font-mono">
+        {viewMode === 'time' ? (
+          event.start?.dateTime ? new Date(event.start.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'All Day'
+        ) : (
+          <span className="text-blue-600 dark:text-blue-400 font-bold animate-pulse">{getCountdown()}</span>
+        )}
+      </p>
+    </article>
+  );
+};
+
 function App() {
   const { theme, toggleTheme } = useTheme()
   const [data, setData] = useState<DashboardData | null>(null)
@@ -241,34 +276,85 @@ function App() {
               </div>
             </section>
 
-            <section className="card shadow-lg h-fit">
-              <div className="flex items-center gap-3 mb-6">
-                <Save className="text-emerald-600 dark:text-emerald-400 w-6 h-6" />
-                <h2 className="text-xl font-semibold">Update Weekly Mission</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {Object.keys(trainingPlan).map((day) => (
-                  <div key={day}>
-                    <label htmlFor={`day-${day}`} className="block text-xs uppercase tracking-widest text-muted mb-1 font-bold">{day}</label>
-                    <input 
-                      id={`day-${day}`}
-                      type="text" 
-                      placeholder="e.g. Rest or Tempo"
-                      value={trainingPlan[day]}
-                      onChange={(e) => setTrainingPlan({...trainingPlan, [day]: e.target.value})}
-                      className="w-full bg-background border border-border rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                      aria-label={`${day} Workout`}
-                    />
-                  </div>
-                ))}
-              </div>
-              <button 
-                onClick={handleUpdatePlan}
-                className="w-full mt-6 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white dark:text-slate-950 font-bold py-2 rounded-xl transition-colors shadow-md"
-              >
-                Sync Mission Plan
-              </button>
-            </section>
+            <div className="space-y-8 h-fit">
+              <section className="card shadow-lg h-fit">
+                <div className="flex items-center gap-3 mb-6">
+                  <Save className="text-emerald-600 dark:text-emerald-400 w-6 h-6" />
+                  <h2 className="text-xl font-semibold">Update Weekly Mission</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {Object.keys(trainingPlan).map((day) => (
+                    <div key={day}>
+                      <label htmlFor={`day-${day}`} className="block text-xs uppercase tracking-widest text-muted mb-1 font-bold">{day}</label>
+                      <input 
+                        id={`day-${day}`}
+                        type="text" 
+                        placeholder="e.g. Rest or Tempo"
+                        value={trainingPlan[day]}
+                        onChange={(e) => setTrainingPlan({...trainingPlan, [day]: e.target.value})}
+                        className="w-full bg-background border border-border rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                        aria-label={`${day} Workout`}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <button 
+                  onClick={handleUpdatePlan}
+                  className="w-full mt-6 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white dark:text-slate-950 font-bold py-2 rounded-xl transition-colors shadow-md"
+                >
+                  Sync Mission Plan
+                </button>
+              </section>
+
+              <section className="card shadow-lg h-fit">
+                <div className="flex items-center gap-3 mb-6">
+                  <ShieldAlert className="text-blue-600 dark:text-blue-400 w-6 h-6" />
+                  <h2 className="text-xl font-semibold">Ops Center</h2>
+                </div>
+                <div className="space-y-4">
+                  <button 
+                    onClick={async () => {
+                      try {
+                        await axios.get('http://localhost:8000/api/cron/sync-strava');
+                        alert('Strava activities synchronized!');
+                        fetchDashboard();
+                      } catch (e) { alert('Sync failed. Check Firestore setup.'); }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-foreground py-3 rounded-xl transition-all border border-border shadow-sm"
+                  >
+                    <Activity className="w-4 h-4 text-orange-500" />
+                    <span className="font-bold text-sm">Sync Strava Telemetry</span>
+                  </button>
+
+                  <button 
+                    onClick={async () => {
+                      try {
+                        await axios.get('http://localhost:8000/api/cron/generate-plan');
+                        alert('AI Mission generated!');
+                        fetchDashboard();
+                      } catch (e) { alert('AI Generation failed. Check Gemini API key.'); }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-foreground py-3 rounded-xl transition-all border border-border shadow-sm"
+                  >
+                    <Trophy className="w-4 h-4 text-emerald-500" />
+                    <span className="font-bold text-sm">Regenerate AI Mission</span>
+                  </button>
+
+                  <button 
+                    onClick={async () => {
+                      try {
+                        await axios.get('http://localhost:8000/api/cron/send-summary');
+                        alert('Briefing sent to your inbox!');
+                      } catch (e) { alert('Push failed. Check Gmail API.'); }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-foreground py-3 rounded-xl transition-all border border-border shadow-sm"
+                  >
+                    <Mail className="w-4 h-4 text-purple-500" />
+                    <span className="font-bold text-sm">Send Push Briefing</span>
+                  </button>
+                </div>
+              </section>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
@@ -318,12 +404,7 @@ function App() {
               </div>
               <div className="space-y-4">
                 {data?.calendar_events.map((event, idx) => (
-                  <article key={idx} className="border-l-4 border-blue-600 dark:border-blue-500 pl-4 py-2 bg-blue-50/50 dark:bg-blue-900/10 rounded-r-xl">
-                    <p className="text-sm font-bold leading-snug">{event.summary}</p>
-                    <p className="text-xs text-muted font-mono mt-1">
-                      {event.start?.dateTime ? new Date(event.start.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'All Day'}
-                    </p>
-                  </article>
+                  <ScheduleItem key={idx} event={event} />
                 ))}
                 {(!data?.calendar_events || data.calendar_events.length === 0) && (
                   <p className="text-muted italic text-center py-6">No meetings today.</p>
