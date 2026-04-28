@@ -64,3 +64,13 @@ body {
 .dark .card {
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.5);
 }
+
+@keyframes progress {
+  0% { transform: scaleX(0); }
+  50% { transform: scaleX(0.7); }
+  100% { transform: scaleX(1); }
+}
+
+.animate-progress {
+  animation: progress 2s ease-in-out infinite;
+}

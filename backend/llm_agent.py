@@ -3,7 +3,7 @@ import json
 import requests
 
 def generate_training_plan():
-    """Reads the training context and uses Z.ai (GLM 4.7) to generate a new plan."""
+    """Reads the training context and uses Global Z.ai (api.z.ai) with standard Bearer auth."""
     api_key = os.getenv("ZAI_API_KEY")
     if not api_key:
         print("Z.ai API Key missing.")
@@ -16,45 +16,62 @@ def generate_training_plan():
     with open('training_context.md', 'r') as f:
         context = f.read()
 
-    try:
-        url = "https://api.z.ai/api/paas/v4/chat/completions"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
-        
-        payload = {
-            "model": "glm-4.7",
-            "messages": [
-                {
-                    "role": "system", 
-                    "content": "You are a professional athletic coach. You will be provided with a context file in Markdown. Your task is to output a 7-day training plan in valid JSON format only."
-                },
-                {
-                    "role": "user", 
-                    "content": context
-                }
-            ],
-            "response_format": { "type": "json_object" }
-        }
-
-        print(f"Attempting to use Z.ai model: glm-4.7")
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        
-        result = response.json()
-        if result and 'choices' in result:
-            text = result['choices'][0]['message']['content']
-            return json.loads(text)
-        
-        print("Z.ai returned an unexpected response format.")
-        
-    except Exception as e:
-        print(f"Z.ai Model failed: {e}")
+    # Updated Tier List based on user priority
+    model_tiers = ["glm-4.6", "glm-4.5", "glm-4.6v", "glm-4-flash"]
     
-    # FINAL FALLBACK: If AI calls fail
-    print("CRITICAL: Z.ai call failed. Using Safe Fallback Plan.")
+    for model_id in model_tiers:
+        try:
+            print(f"Attempting to use Global Z.ai model: {model_id}")
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
+            
+            # Optimized payload for speed and clarity
+            payload = {
+                "model": model_id,
+                "messages": [
+                    {
+                        "role": "system", 
+                        "content": "Professional coach. Output JSON only. Keys: Monday-Sunday. Sub-keys: title, type, duration_mins, distance_km, intensity_zone, briefing."
+                    },
+                    {
+                        "role": "user", 
+                        "content": f"Context:\n{context}\n\nJSON output:"
+                    }
+                ],
+                "response_format": { "type": "json_object" }
+            }
+
+            # Increased timeout for large reasoning models
+            response = requests.post(url, headers=headers, json=payload, timeout=90)
+            
+            if response.status_code == 429:
+                print(f"Model {model_id} rate limited (429): {response.text}")
+                continue
+            
+            if response.status_code == 401:
+                print(f"Model {model_id} Unauthorized (401): Check your API Key.")
+                return None
+                
+            response.raise_for_status()
+            
+            result = response.json()
+            if result and 'choices' in result:
+                text = result['choices'][0]['message']['content']
+                text = text.replace('```json', '').replace('```', '').strip()
+                plan = json.loads(text)
+                plan["_metadata"] = {"source": "ai", "model": model_id}
+                return plan
+            
+        except Exception as e:
+            print(f"Global Z.ai Model {model_id} failed: {e}")
+            continue
+    
+    # FINAL FALLBACK
+    print("CRITICAL: All Global AI models failed. Using Safe Fallback Plan.")
     return {
+        "_metadata": {"source": "fallback"},
         "Monday": {"title": "Recovery Day", "type": "Rest", "duration_mins": 0, "distance_km": 0, "intensity_zone": "Z1", "briefing": "Focus on sleep and hydration. AI coach is currently offline."},
         "Tuesday": {"title": "Base Aerobic Run", "type": "Run", "duration_mins": 45, "distance_km": 8, "intensity_zone": "Z2", "briefing": "Easy pace. Keep heart rate low."},
         "Wednesday": {"title": "Strength & Mobility", "type": "Gym", "duration_mins": 40, "distance_km": 0, "intensity_zone": "Z2", "briefing": "Core work and single-leg stability exercises."},

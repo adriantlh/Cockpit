@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { Calendar, Mail, Trophy, Activity, Clock, Settings, Plus, Save, X, Moon, Sun, Trash2, Edit2, Check, Wind, CloudRain, Thermometer, ShieldAlert } from 'lucide-react'
+import { Calendar, Mail, Trophy, Activity, Clock, Settings, Plus, Save, X, Moon, Sun, Trash2, Edit2, Check, Wind, CloudRain, Thermometer, ShieldAlert, RefreshCw } from 'lucide-react'
 import { useTheme } from './context/ThemeContext'
 
 interface Event {
@@ -32,6 +32,10 @@ interface MissionProfile {
 interface DashboardData {
   countdown: Event[]
   training_today: MissionProfile
+  plan_metadata?: {
+    source: string
+    model?: string
+  }
   calendar_events: any[]
   gmail_highlights: { id: string; snippet: string }[]
   environmental: EnvironmentalData | null
@@ -117,15 +121,25 @@ function App() {
     Monday: '', Tuesday: '', Wednesday: '', Thursday: '', Friday: '', Saturday: '', Sunday: ''
   })
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
+  const [now, setNow] = useState(new Date())
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const fetchDashboard = async () => {
+  // Live Clock Effect
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const fetchDashboard = async (force = false) => {
+    if (force) setIsRefreshing(true);
     try {
-      const response = await axios.get('http://localhost:8000/api/dashboard')
+      const response = await axios.get(`http://localhost:8000/api/dashboard?force=${force}`)
       setData(response.data)
     } catch (error) {
       console.error('Error fetching dashboard:', error)
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
   }
 
@@ -210,17 +224,52 @@ function App() {
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground p-8 font-sans transition-colors duration-300">
-      <header className="mb-12 flex items-center justify-between border-b border-border pb-6">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight mb-2">COCKPIT</h1>
-          <p className="text-muted font-medium uppercase tracking-widest text-sm">Daily Operations Dashboard</p>
+      {/* Global Sync Status */}
+      {isRefreshing && (
+        <div className="fixed top-0 left-0 w-full z-[100] animate-in fade-in duration-300">
+          <div className="bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.3em] py-1 px-4 flex items-center justify-center gap-2">
+            <RefreshCw className="w-3 h-3 animate-spin" />
+            <span>Synchronizing Mission Telemetry...</span>
+          </div>
+          <div className="h-0.5 w-full bg-blue-600/20 overflow-hidden">
+            <div className="h-full bg-blue-400 animate-progress origin-left" style={{ width: '100%' }} />
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden md:block mr-4">
-            <p className="text-2xl font-mono text-emerald-600 dark:text-emerald-400">
-              {new Date().toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })}
+      )}
+
+      <header className="mb-12 grid grid-cols-1 md:grid-cols-3 items-center border-b border-border pb-6 gap-6">
+        {/* Left: Branding */}
+        <div className="text-left">
+          <h1 className="text-4xl font-bold tracking-tight mb-1">COCKPIT</h1>
+          <p className="text-muted font-medium uppercase tracking-widest text-xs font-black">Daily Operations</p>
+        </div>
+
+        {/* Center: Live Clock */}
+        <div className="flex flex-col items-center justify-center order-first md:order-none">
+          <div className="flex items-center gap-3">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]" />
+            <p className="text-5xl font-mono font-black tracking-tighter tabular-nums leading-none">
+              {now.toLocaleTimeString('en-SG', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </p>
           </div>
+          <p className="text-[10px] uppercase tracking-[0.4em] text-muted font-black mt-2">Operational Time</p>
+        </div>
+
+        {/* Right: Date & Controls */}
+        <div className="flex items-center justify-end gap-4">
+          <div className="text-right hidden lg:block mr-2">
+            <p className="text-xl font-mono font-bold text-emerald-600 dark:text-emerald-400">
+              {now.toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()}
+            </p>
+          </div>
+          <button
+            onClick={() => fetchDashboard(true)}
+            aria-label="Manual Telemetry Sync"
+            disabled={isRefreshing}
+            className={`p-3 bg-surface border border-border rounded-full hover:bg-surface-hover transition-all focus-visible:ring-2 focus-visible:ring-blue-500 shadow-sm ${isRefreshing ? 'opacity-50' : ''}`}
+          >
+            <RefreshCw className={`w-6 h-6 text-blue-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
           <button
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
@@ -381,32 +430,37 @@ function App() {
                 <div className="space-y-4">
                   <button 
                     onClick={async () => {
+                      setIsRefreshing(true);
                       try {
                         await axios.get('http://localhost:8000/api/cron/sync-strava');
+                        await fetchDashboard(true);
                         alert('Strava activities synchronized!');
-                        fetchDashboard();
-                      } catch (e) { alert('Sync failed. Check Firestore setup.'); }
+                      } catch (e) { alert('Sync failed.'); }
+                      finally { setIsRefreshing(false); }
                     }}
-                    className="w-full flex items-center justify-center gap-2 bg-surface border border-border hover:bg-surface-hover text-foreground py-3 rounded-xl transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500"
+                    disabled={isRefreshing}
+                    className="w-full flex items-center justify-center gap-2 bg-surface border border-border hover:bg-surface-hover text-foreground py-3 rounded-xl transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
                   >
-                    <Activity className="w-4 h-4 text-orange-500" />
+                    <Activity className={`w-4 h-4 text-orange-500 ${isRefreshing ? 'animate-pulse' : ''}`} />
                     <span className="font-bold text-sm">Sync Strava Telemetry</span>
                   </button>
 
                   <button 
                     onClick={async () => {
+                      setIsRefreshing(true);
                       try {
                         await axios.get('http://localhost:8000/api/cron/generate-plan');
+                        await fetchDashboard(true);
                         alert('AI Mission generated!');
-                        fetchDashboard();
-                      } catch (e) { alert('AI Generation failed. Check Z.ai API key.'); }
+                      } catch (e) { alert('AI Generation failed.'); }
+                      finally { setIsRefreshing(false); }
                     }}
-                    className="w-full flex items-center justify-center gap-2 bg-surface border border-border hover:bg-surface-hover text-foreground py-3 rounded-xl transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500"
+                    disabled={isRefreshing}
+                    className="w-full flex items-center justify-center gap-2 bg-surface border border-border hover:bg-surface-hover text-foreground py-3 rounded-xl transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
                   >
-                    <Trophy className="w-4 h-4 text-emerald-500" />
+                    <Trophy className={`w-4 h-4 text-emerald-500 ${isRefreshing ? 'animate-pulse' : ''}`} />
                     <span className="font-bold text-sm">Regenerate AI Mission</span>
                   </button>
-
                   <button 
                     onClick={async () => {
                       try {
@@ -450,7 +504,20 @@ function App() {
               </div>
             </section>
 
-            <section className="card shadow-md border-emerald-200 dark:border-emerald-900 ring-2 ring-emerald-500/10">
+            <section className="card shadow-md border-emerald-200 dark:border-emerald-900 ring-2 ring-emerald-500/10 relative overflow-hidden">
+              {/* AI Intelligence Badge */}
+              <div className="absolute top-4 right-4 flex items-center gap-2">
+                <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border shadow-sm ${
+                  data?.plan_metadata?.source === 'ai' 
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' 
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 animate-pulse'
+                }`}>
+                  {data?.plan_metadata?.source === 'ai' 
+                    ? `Live Intel: ${data?.plan_metadata?.model || 'GLM'}` 
+                    : 'Safety Fallback'}
+                </span>
+              </div>
+
               <div className="flex items-center gap-3 mb-6 border-b border-border pb-3">
                 <Activity className="text-emerald-600 dark:text-emerald-400 w-6 h-6" />
                 <h2 className="text-xl font-semibold uppercase tracking-tight text-emerald-700 dark:text-emerald-400">Today's Mission</h2>

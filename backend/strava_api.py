@@ -29,16 +29,16 @@ def get_strava_access_token():
         print(f"Failed to refresh Strava token: {e}")
         return None
 
-def get_strava_activities(after_days=1):
-    """Fetches activities from the last X days."""
+def get_strava_activities(limit=50):
+    """Fetches the most recent activities."""
     token = get_strava_access_token()
     if not token:
         return []
 
-    after_timestamp = int((datetime.now() - timedelta(days=after_days)).timestamp())
-    
     headers = {'Authorization': f'Bearer {token}'}
-    params = {'after': after_timestamp}
+    params = {
+        'per_page': limit
+    }
 
     try:
         res = requests.get("https://www.strava.com/api/v3/athlete/activities", headers=headers, params=params)

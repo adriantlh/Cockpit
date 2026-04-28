@@ -49,6 +49,7 @@ def process_dashboard_data(events, calendar_items, gmail_items, training_plan, e
     return {
         "countdown": countdown_results,
         "training_today": get_workout_for_day(training_plan, today_dw),
+        "plan_metadata": training_plan.get("_metadata", {"source": "legacy"}),
         "calendar_events": calendar_items,
         "gmail_highlights": gmail_items,
         "environmental": env_data,
