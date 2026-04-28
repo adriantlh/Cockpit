@@ -1,12 +1,17 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import os
+from dotenv import load_dotenv
+
+# Load environment variables first!
+load_dotenv()
+
 import google_api
 import processor
 import weather_api
 import strava_api
 import llm_agent
 from firebase_admin import credentials, firestore, initialize_app
-import os
 
 app = FastAPI(title="Cockpit API")
 
@@ -42,6 +47,7 @@ async def root():
 async def get_dashboard():
     # 1. Fetch from Firestore (Mocked if DB not connected)
     custom_events = []
+    training_history = []
     training_plan = {
         "Monday": "Rest", "Tuesday": "Intervals", "Wednesday": "Easy Run",
         "Thursday": "Tempo", "Friday": "Rest", "Saturday": "Long Ride", "Sunday": "Easy Run"
@@ -55,6 +61,10 @@ async def get_dashboard():
             event_data['id'] = doc.id
             custom_events.append(event_data)
         
+        # Fetch History
+        history_ref = db.collection('completed_workouts').order_by('start_date', direction=firestore.Query.DESCENDING).limit(5)
+        training_history = [doc.to_dict() for doc in history_ref.stream()]
+
         plan_ref = db.collection('training_plans').document('current')
         plan_doc = plan_ref.get()
         if plan_doc.exists:
@@ -80,7 +90,8 @@ async def get_dashboard():
         calendar_items, 
         gmail_highlights, 
         training_plan,
-        env_data
+        env_data,
+        training_history
     )
     return data
 

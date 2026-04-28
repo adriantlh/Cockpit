@@ -3,20 +3,20 @@ import time
 import os
 from datetime import datetime, timedelta
 
-STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
-STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
-STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
-
 def get_strava_access_token():
     """Refreshes and returns the Strava access token."""
-    if not STRAVA_CLIENT_ID or not STRAVA_CLIENT_SECRET or not STRAVA_REFRESH_TOKEN:
+    client_id = os.getenv("STRAVA_CLIENT_ID")
+    client_secret = os.getenv("STRAVA_CLIENT_SECRET")
+    refresh_token = os.getenv("STRAVA_REFRESH_TOKEN")
+
+    if not client_id or not client_secret or not refresh_token:
         print("Strava credentials missing in environment.")
         return None
 
     payload = {
-        'client_id': STRAVA_CLIENT_ID,
-        'client_secret': STRAVA_CLIENT_SECRET,
-        'refresh_token': STRAVA_REFRESH_TOKEN,
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'refresh_token': refresh_token,
         'grant_type': 'refresh_token',
         'f': 'json'
     }
@@ -44,6 +44,10 @@ def get_strava_activities(after_days=1):
         res = requests.get("https://www.strava.com/api/v3/athlete/activities", headers=headers, params=params)
         activities = res.json()
         
+        if not isinstance(activities, list):
+            print(f"Strava API error or unexpected response: {activities}")
+            return []
+
         parsed_activities = []
         for act in activities:
             parsed_activities.append({

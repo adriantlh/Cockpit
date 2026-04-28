@@ -32,7 +32,7 @@ def get_workout_for_day(training_plan, day_of_week):
         }
     return workout
 
-def process_dashboard_data(events, calendar_items, gmail_items, training_plan, env_data=None):
+def process_dashboard_data(events, calendar_items, gmail_items, training_plan, env_data=None, history=None):
     """Aggregates all data for the dashboard."""
     today_dw = date.today().weekday()
     
@@ -51,7 +51,8 @@ def process_dashboard_data(events, calendar_items, gmail_items, training_plan, e
         "training_today": get_workout_for_day(training_plan, today_dw),
         "calendar_events": calendar_items,
         "gmail_highlights": gmail_items,
-        "environmental": env_data
+        "environmental": env_data,
+        "training_history": history or []
     }
 
 def generate_training_context(db, calendar_items):

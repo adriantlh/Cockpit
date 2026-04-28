@@ -35,6 +35,7 @@ interface DashboardData {
   calendar_events: any[]
   gmail_highlights: { id: string; snippet: string }[]
   environmental: EnvironmentalData | null
+  training_history: any[]
 }
 
 const ScheduleItem = ({ event }: { event: any }) => {
@@ -386,7 +387,7 @@ function App() {
                         fetchDashboard();
                       } catch (e) { alert('Sync failed. Check Firestore setup.'); }
                     }}
-                    className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-foreground py-3 rounded-xl transition-all border border-border shadow-sm"
+                    className="w-full flex items-center justify-center gap-2 bg-surface border border-border hover:bg-surface-hover text-foreground py-3 rounded-xl transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500"
                   >
                     <Activity className="w-4 h-4 text-orange-500" />
                     <span className="font-bold text-sm">Sync Strava Telemetry</span>
@@ -400,7 +401,7 @@ function App() {
                         fetchDashboard();
                       } catch (e) { alert('AI Generation failed. Check Gemini API key.'); }
                     }}
-                    className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-foreground py-3 rounded-xl transition-all border border-border shadow-sm"
+                    className="w-full flex items-center justify-center gap-2 bg-surface border border-border hover:bg-surface-hover text-foreground py-3 rounded-xl transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500"
                   >
                     <Trophy className="w-4 h-4 text-emerald-500" />
                     <span className="font-bold text-sm">Regenerate AI Mission</span>
@@ -413,11 +414,12 @@ function App() {
                         alert('Briefing sent to your inbox!');
                       } catch (e) { alert('Push failed. Check Gmail API.'); }
                     }}
-                    className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-foreground py-3 rounded-xl transition-all border border-border shadow-sm"
+                    className="w-full flex items-center justify-center gap-2 bg-surface border border-border hover:bg-surface-hover text-foreground py-3 rounded-xl transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500"
                   >
                     <Mail className="w-4 h-4 text-purple-500" />
                     <span className="font-bold text-sm">Send Push Briefing</span>
                   </button>
+
                 </div>
               </section>
             </div>
@@ -547,19 +549,56 @@ function App() {
               </div>
             </section>
 
-            <section className="lg:col-span-2 card shadow-md">
+            <section className="card shadow-md">
               <div className="flex items-center gap-3 mb-6 border-b border-border pb-3">
                 <Mail className="text-purple-600 dark:text-purple-400 w-6 h-6" />
-                <h2 className="text-xl font-semibold uppercase tracking-tight">Comms Intelligence</h2>
+                <h2 className="text-xl font-semibold uppercase tracking-tight">Comms Intel</h2>
               </div>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-4">
                 {data?.gmail_highlights.map((msg, idx) => (
-                  <article key={idx} className="bg-surface-hover border border-border p-5 rounded-xl hover:shadow-md transition-all duration-300">
-                    <p className="text-sm text-foreground leading-relaxed italic border-l-2 border-purple-400 pl-4 py-1">"{msg.snippet}..."</p>
+                  <article key={idx} className="bg-surface-hover border border-border p-4 rounded-xl hover:shadow-sm transition-all duration-300">
+                    <p className="text-[11px] text-foreground leading-relaxed italic line-clamp-3">"{msg.snippet}..."</p>
                   </article>
                 ))}
                 {(!data?.gmail_highlights || data.gmail_highlights.length === 0) && (
-                  <p className="text-muted italic text-center py-6">No mission-critical messages.</p>
+                  <p className="text-muted italic text-center py-6 text-xs">No mission-critical messages.</p>
+                )}
+              </div>
+            </section>
+
+            {/* Training History (Mission Log) */}
+            <section className="card shadow-md">
+              <div className="flex items-center gap-3 mb-6 border-b border-border pb-3">
+                <Trophy className="text-orange-600 dark:text-orange-400 w-6 h-6" />
+                <h2 className="text-xl font-semibold uppercase tracking-tight">Mission Log</h2>
+              </div>
+              <div className="space-y-4">
+                {data?.training_history && data.training_history.length > 0 ? (
+                  data.training_history.map((workout, idx) => (
+                    <article key={idx} className="p-3 bg-surface-hover border border-border rounded-xl">
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="text-xs font-bold truncate flex-1 mr-2">{workout.name}</p>
+                        <p className="text-[10px] font-mono text-muted uppercase whitespace-nowrap">
+                          {new Date(workout.start_date).toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })}
+                        </p>
+                      </div>
+                      <div className="flex gap-3 mt-2">
+                        <div className="text-[10px] uppercase font-bold text-orange-500">
+                          {Math.round(workout.distance / 100) / 10}km
+                        </div>
+                        <div className="text-[10px] uppercase font-bold text-muted">
+                          {Math.round(workout.moving_time / 60)}m
+                        </div>
+                        {workout.suffer_score && (
+                          <div className="text-[10px] uppercase font-black text-red-500 ml-auto">
+                            SR {workout.suffer_score}
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <p className="text-muted italic text-center py-6 text-xs">No records found. Run sync.</p>
                 )}
               </div>
             </section>
