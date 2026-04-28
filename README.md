@@ -43,69 +43,62 @@ where:
 ## Configuration & API keys
 
 Cockpit requires several external integrations to function fully. Follow these
-detailed steps to set up your "Command Center."
+detailed steps for the **New Google Cloud UI**.
 
 ### 1. Google Cloud setup (Calendar, Gmail, Firestore)
 
-This step allows Cockpit to read your calendar, fetch emails, and store your
-training data in a database.
+This allows Cockpit to read your calendar, fetch emails, and store data.
 
 #### Enable the APIs
 1.  Go to the [Google Cloud Console](https://console.cloud.google.com/).
-2.  Click **Select a project** at the top and then **New Project**. Name it
-    "Cockpit."
-3.  In the search bar at the top, search for and enable each of these:
-    - **Google Calendar API**
-    - **Gmail API**
-    - **Cloud Firestore API**
+2.  Click **Select a project** > **New Project**. Name it "Cockpit."
+3.  Search for and enable: **Google Calendar API**, **Gmail API**, and
+    **Cloud Firestore API**.
 
 #### Set up the database (Firestore)
-1.  In the Google Cloud sidebar, find **Firestore**.
-2.  Click **Create Database**.
-3.  Select **Native Mode**.
-4.  Choose a location (for example, `asia-southeast1`) and click **Create**.
-5.  Wait for it to initialize. You don't need to create any "Collections"
-    manually; the app will do this for you.
+1.  In the sidebar, find **Firestore** > **Create Database**.
+2.  Select **Native Mode**. Choose a location (e.g., `asia-southeast1`).
+3.  Wait for initialization. No manual collections are needed.
+
+#### Configure the Google Auth Platform (New UI)
+1.  Sidebar: **APIs & Services** > **Google Auth platform** (formerly OAuth
+    consent screen).
+2.  **User Type:** Select **Internal** (if using a Workspace account) or
+    **External** (if using a personal account). If "External" is missing and
+    you are on a work account, "Internal" is perfectly fine for personal use.
+3.  **App Info:** Set App Name to "Cockpit" and enter your email.
+4.  **Audience:** Click the **Audience** tab and add your email to **Test
+    users**.
 
 #### Get your user credentials (`credentials.json`)
-1.  Go to **APIs & Services** > **OAuth consent screen**.
-2.  Select **External** and click **Create**.
-3.  Fill in the "App name" (Cockpit) and your email address. Leave the rest
-    blank.
-4.  Add your own email address to the **Test users** list.
-5.  Go to **Credentials** > **Create Credentials** > **OAuth client ID**.
-6.  Select **Desktop App** as the "Application type."
-7.  Download the JSON file provided.
-8.  **Rename it to `credentials.json`** and place it in the `backend/`
-    directory.
+1.  In the **Google Auth platform** section, click the **Clients** tab (or go to
+    **APIs & Services** > **Credentials**).
+2.  Click **[+ CREATE CLIENT]** (or Create Credentials > OAuth client ID).
+3.  Select **Desktop Application**. Name it "Cockpit CLI."
+4.  Click the **Download icon** (down arrow) in the list to get your JSON.
+5.  **Rename to `credentials.json`** and place in `backend/`.
 
 #### Get your database key (`serviceAccountKey.json`)
-1.  Go to **IAM & Admin** > **Service Accounts**.
-2.  Click **Create Service Account**. Name it "cockpit-admin."
-3.  Grant it the **Cloud Datastore User** role (this allows it to use
-    Firestore).
-4.  Click the created account, go to the **Keys** tab, and click **Add Key** >
-    **Create new key**.
-5.  Select **JSON** and click **Create**.
-6.  **Rename the downloaded file to `serviceAccountKey.json`** and place it in
-    the `backend/` directory.
+1.  Sidebar: **IAM & Admin** > **Service Accounts** > **[+ CREATE SERVICE
+    ACCOUNT]**.
+2.  Name it "cockpit-admin." Click **Create and Continue**.
+3.  **Role:** Search for **Datastore User** (under "Cloud Datastore") or
+    **Firebase Firestore Admin**. Select it and click **Done**.
+4.  Click the account email > **Keys** tab > **Add Key** > **Create new key** >
+    **JSON**.
+5.  **Rename to `serviceAccountKey.json`** and place in `backend/`.
 
 ### 2. Strava API setup (The "Telemetry" Feed)
 
-Strava uses a strict security flow. You need to perform a one-time "handshake"
-to get your key.
-
 1.  Visit [Strava API Settings](https://www.strava.com/settings/api).
-2.  Create an application. Set the **Authorization Callback Domain** to
-    `localhost`.
+2.  Create an app. Set **Authorization Callback Domain** to `localhost`.
 3.  Copy your **Client ID** and **Client Secret**.
-4.  **Get the code:** Paste this URL into your browser, replacing
-    `[INSERT_CLIENT_ID]` with your ID:
+4.  **Authorize:** Paste this URL into your browser (replace
+    `[INSERT_CLIENT_ID]`):
     `https://www.strava.com/oauth/authorize?client_id=[INSERT_CLIENT_ID]&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,activity:read_all`
-5.  Click **Authorize**. The page will "fail" to load, but look at the URL in
-    your address bar. Copy the `code=` value (for example, `code=abc123...`).
-6.  **Get the Refresh Token:** Open your terminal and run this command (replace
-    the brackets with your data):
+5.  Click **Authorize**. Copy the `code=` value from the URL in the address
+    bar.
+6.  **Exchange for Refresh Token:** Run this in your terminal:
     ```bash
     curl -X POST https://www.strava.com/oauth/token \
       -d client_id=[CLIENT_ID] \
@@ -113,46 +106,21 @@ to get your key.
       -d code=[AUTHORIZATION_CODE] \
       -d grant_type=authorization_code
     ```
-7.  Copy the `refresh_token` from the text response. This is your permanent key.
+7.  Copy the `refresh_token` from the response. This is your permanent key.
 
 ### 3. Google Gemini setup (The "AI Coach")
 
 1.  Go to [Google AI Studio](https://aistudio.google.com/).
-2.  Click **Get API Key** in the sidebar.
-3.  Copy the key and add it as `GEMINI_API_KEY` to your environment variables.
-
-## Technical stack
-
-- **Frontend:** React (TypeScript), Tailwind CSS v4, Lucide Icons.
-- **Backend:** Python (FastAPI), Google API Client, Strava API.
-- **Database:** Google Cloud Firestore.
-- **AI:** Google Gemini (Generative AI SDK).
+2.  Click **Get API Key**. Add it to your `.env` as `GEMINI_API_KEY`.
 
 ## Installation
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-
-### Backend setup
-1.  `cd backend`
-2.  `python3 -m venv venv && source venv/bin/activate`
-3.  `pip install -r requirements.txt`
-4.  Fill in your `backend/.env` file with your keys (see `example.env`).
-5.  Start the server: `uvicorn main:app --reload`.
-
-### Frontend setup
-1.  `cd frontend`
-2.  `npm install`
-3.  `npm run dev`
+1.  **Backend:** `cd backend`, create venv, `pip install -r requirements.txt`.
+2.  **Environment:** Copy keys into `backend/.env` (see `credentials.json.template`).
+3.  **Run:** `uvicorn main:app --reload` (Backend) and `npm run dev` (Frontend).
 
 ## Workflow
 
-1.  **Ingestion:** Nightly, Cockpit syncs your Strava activities and Google
-    Calendar.
-2.  **Context Generation:** On Sundays, it compiles all data into
-    `training_context.md`.
-3.  **AI Planning:** Gemini reads the context and generates the next 7 days of
-    training, saved directly to Firestore.
-4.  **Daily Ops:** Every morning, you receive a briefing email and view your
-    optimized dashboard.
+Cockpit syncs Strava/Calendar nightly. On Sundays, it compiles data into
+`training_context.md`. Gemini reads this and generates your 7-day plan, which
+refreshes your "Daily Mission" automatically.
