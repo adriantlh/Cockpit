@@ -5,9 +5,9 @@ individuals who need to synchronize their professional schedule, personal
 fitness goals, and mission-critical communications in a single, visually high-
 signal interface.
 
-Built to run entirely within the Google Cloud Platform (GCP) Free Tier, Cockpit
-aggregates data from Google Calendar, Gmail, Strava, and weather services, using
-Z.ai to autonomously generate adaptive training plans.
+Built to run primarily within the Google Cloud Platform (GCP) Free Tier, Cockpit
+aggregates data from Google Calendar, Gmail, Strava, and weather services. It
+leverages **Z.ai (Zhipu AI)** to autonomously generate adaptive training plans.
 
 ## Use case
 
@@ -30,7 +30,7 @@ where:
 ## Features
 
 - **AI-Driven Training Plans:** Automatically generates weekly plans using
-  Z.ai based on your Strava performance and calendar load.
+  **Z.ai (GLM 4.7)** based on your Strava performance and calendar load.
 - **Strava Integration:** Syncs your actual activities to track adherence and
   provide biometric context to the AI.
 - **Environmental Context:** Real-time weather and air quality monitoring to
