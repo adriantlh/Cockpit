@@ -30,7 +30,7 @@ where:
 ## Features
 
 - **AI-Driven Training Plans:** Automatically generates weekly plans using
-  **Z.ai (GLM 4.7)** based on your Strava performance and calendar load.
+  **Z.ai (GLM-4.6, 4.5, 4.6V)** based on your Strava performance and calendar load.
 - **Strava Integration:** Syncs your actual activities to track adherence and
   provide biometric context to the AI.
 - **Environmental Context:** Real-time weather and air quality monitoring to
@@ -39,6 +39,23 @@ where:
   you to swap between Z.ai, OpenAI, or local models.
 - **Modern Dashboard:** High-contrast Dark/Light modes with a focus on
   accessibility and visual hierarchy.
+
+## Operational Intelligence (API & Caching)
+
+Cockpit is designed to be highly efficient, minimizing API costs and latency 
+through a local-first caching strategy.
+
+| API Service | Type | Frequency | Caching Policy |
+| :--- | :--- | :--- | :--- |
+| **Z.ai (LLM)** | POST | On-demand (Manual) | Results saved to `current_plan.json` & Firestore. |
+| **Strava** | GET | On-demand (Manual) | Results saved to Firestore. 30-min dashboard cache. |
+| **Google Calendar** | GET | Periodic (30 mins) | Cached in `cache.json` for 30 minutes. |
+| **Gmail** | GET | Periodic (30 mins) | Cached in `cache.json` for 30 minutes. |
+| **Open-Meteo** | GET | Periodic (30 mins) | Cached in `cache.json` for 30 minutes. |
+| **Firestore** | CRUD | Real-time / Periodic | Local cache serves as the primary read source. |
+
+**Manual Override:** Clicking the **"Manual Telemetry Sync"** or any action button 
+in the Ops Center explicitly bypasses `cache.json` to fetch fresh data.
 
 ## Configuration & API keys
 
@@ -110,11 +127,13 @@ This allows Cockpit to read your calendar, fetch emails, and store data.
 
 ### 3. Z.ai setup (The "AI Coach")
 
-Cockpit uses Z.ai's GLM 4.7 model for intelligent training plan generation.
+Cockpit uses Z.ai's high-performance coding endpoint for intelligent training 
+plan generation.
 
 1.  Go to the [Z.ai (Zhipu AI) platform](https://open.bigmodel.cn/).
 2.  Create an account and navigate to the **API Keys** section.
 3.  Copy your API key and add it to your `.env` as `ZAI_API_KEY`.
+4.  The application uses the coding-optimized endpoint: `https://api.z.ai/api/coding/paas/v4/chat/completions`.
 
 ## Installation
 
@@ -124,6 +143,7 @@ Cockpit uses Z.ai's GLM 4.7 model for intelligent training plan generation.
 
 ## Workflow
 
-Cockpit syncs Strava/Calendar nightly. On Sundays, it compiles data into
-`training_context.md`. Z.ai reads this and generates your 7-day plan, which
-refreshes your "Daily Mission" automatically.
+Cockpit is designed for manual-active synchronization:
+1.  **Dashboard Load:** Reads from `cache.json` (30-min TTL) to ensure instant UI response.
+2.  **Telemetry Sync:** When triggered, pulls the latest 50 Strava activities to Firestore.
+3.  **Mission Generation:** On-demand AI processing compiles `training_context.md` (Calendar + Strava + Weather) and invokes Z.ai for a specialized 7-day training plan.
