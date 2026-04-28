@@ -153,7 +153,8 @@ async def sync_strava():
     if not db:
         raise HTTPException(status_code=500, detail="Database not connected")
     
-    activities = strava_api.get_strava_activities(after_days=1)
+    # Increased lookback to 30 days to ensure history populates
+    activities = strava_api.get_strava_activities(after_days=30)
     for act in activities:
         # Use ID as document name to avoid duplicates
         db.collection('completed_workouts').document(act['id']).set(act)

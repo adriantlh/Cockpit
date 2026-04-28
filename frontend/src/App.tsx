@@ -399,7 +399,7 @@ function App() {
                         await axios.get('http://localhost:8000/api/cron/generate-plan');
                         alert('AI Mission generated!');
                         fetchDashboard();
-                      } catch (e) { alert('AI Generation failed. Check Gemini API key.'); }
+                      } catch (e) { alert('AI Generation failed. Check Z.ai API key.'); }
                     }}
                     className="w-full flex items-center justify-center gap-2 bg-surface border border-border hover:bg-surface-hover text-foreground py-3 rounded-xl transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500"
                   >

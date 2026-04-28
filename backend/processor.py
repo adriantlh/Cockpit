@@ -66,7 +66,8 @@ def generate_training_context(db, calendar_items):
     
     # 2. Last Week's Performance
     last_week = datetime.now() - timedelta(days=7)
-    workouts_ref = db.collection('completed_workouts').where('start_date', '>=', last_week.isoformat())
+    from google.cloud.firestore_v1.base_query import FieldFilter
+    workouts_ref = db.collection('completed_workouts').where(filter=FieldFilter('start_date', '>=', last_week.isoformat()))
     completed = [doc.to_dict() for doc in workouts_ref.stream()]
     
     context = "# Training Context for LLM\n\n"

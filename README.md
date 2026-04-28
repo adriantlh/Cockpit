@@ -7,7 +7,7 @@ signal interface.
 
 Built to run entirely within the Google Cloud Platform (GCP) Free Tier, Cockpit
 aggregates data from Google Calendar, Gmail, Strava, and weather services, using
-Google Gemini to autonomously generate adaptive training plans.
+Z.ai to autonomously generate adaptive training plans.
 
 ## Use case
 
@@ -30,13 +30,13 @@ where:
 ## Features
 
 - **AI-Driven Training Plans:** Automatically generates weekly plans using
-  Google Gemini based on your Strava performance and calendar load.
+  Z.ai based on your Strava performance and calendar load.
 - **Strava Integration:** Syncs your actual activities to track adherence and
   provide biometric context to the AI.
 - **Environmental Context:** Real-time weather and air quality monitoring to
   suggest indoor vs. outdoor training.
 - **Agnostic LLM Interface:** Uses a standard Markdown context file, allowing
-  you to swap between Gemini, OpenAI, or local models.
+  you to swap between Z.ai, OpenAI, or local models.
 - **Modern Dashboard:** High-contrast Dark/Light modes with a focus on
   accessibility and visual hierarchy.
 
@@ -108,10 +108,13 @@ This allows Cockpit to read your calendar, fetch emails, and store data.
     ```
 7.  Copy the `refresh_token` from the response. This is your permanent key.
 
-### 3. Google Gemini setup (The "AI Coach")
+### 3. Z.ai setup (The "AI Coach")
 
-1.  Go to [Google AI Studio](https://aistudio.google.com/).
-2.  Click **Get API Key**. Add it to your `.env` as `GEMINI_API_KEY`.
+Cockpit uses Z.ai's GLM 4.7 model for intelligent training plan generation.
+
+1.  Go to the [Z.ai (Zhipu AI) platform](https://open.bigmodel.cn/).
+2.  Create an account and navigate to the **API Keys** section.
+3.  Copy your API key and add it to your `.env` as `ZAI_API_KEY`.
 
 ## Installation
 
@@ -122,5 +125,5 @@ This allows Cockpit to read your calendar, fetch emails, and store data.
 ## Workflow
 
 Cockpit syncs Strava/Calendar nightly. On Sundays, it compiles data into
-`training_context.md`. Gemini reads this and generates your 7-day plan, which
+`training_context.md`. Z.ai reads this and generates your 7-day plan, which
 refreshes your "Daily Mission" automatically.
