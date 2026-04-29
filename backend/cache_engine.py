@@ -3,10 +3,11 @@ import json
 import time
 
 CACHE_FILE = 'cache.json'
-CACHE_EXPIRY = 1800 # 30 minutes in seconds
+CACHE_EXPIRY = 86400 # 24 hours in seconds
+CACHE_VERSION = 'v1.2' # Increment this when schema changes
 
 def get_cached_data():
-    """Returns cached dashboard data if not expired."""
+    """Returns cached dashboard data if not expired and version matches."""
     if not os.path.exists(CACHE_FILE):
         return None
     
@@ -14,6 +15,11 @@ def get_cached_data():
         with open(CACHE_FILE, 'r') as f:
             cache = json.load(f)
             
+        # Check version and expiry
+        if cache.get('version') != CACHE_VERSION:
+            print(f"Cache version mismatch (got {cache.get('version')}, expected {CACHE_VERSION}). Invalidate.")
+            return None
+
         if time.time() - cache.get('timestamp', 0) < CACHE_EXPIRY:
             print("Dashboard: Loading from local cache.")
             return cache.get('data')
@@ -22,10 +28,11 @@ def get_cached_data():
     return None
 
 def save_to_cache(data):
-    """Saves dashboard data to local cache."""
+    """Saves dashboard data to local cache with versioning."""
     try:
         cache = {
             'timestamp': time.time(),
+            'version': CACHE_VERSION,
             'data': data
         }
         with open(CACHE_FILE, 'w') as f:

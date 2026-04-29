@@ -65,7 +65,7 @@ async def get_dashboard(force: bool = False):
                 event_data['id'] = doc.id
                 custom_events.append(event_data)
             
-            history_ref = db.collection('completed_workouts').order_by('start_date', direction=firestore.Query.DESCENDING).limit(5)
+            history_ref = db.collection('completed_workouts').order_by('start_date', direction=firestore.Query.DESCENDING).limit(20)
             training_history = [doc.to_dict() for doc in history_ref.stream()]
 
             plan_ref = db.collection('training_plans').document('current')
@@ -83,6 +83,15 @@ async def get_dashboard(force: bool = False):
         gmail_highlights = google_api.get_gmail_highlights()
     else:
         calendar_items = [{"summary": "Meeting placeholder (credentials.json missing)", "start": {"dateTime": "2023-01-01T00:00:00Z"}}]
+        gmail_highlights = [{
+            "id": "1", 
+            "threadId": "1", 
+            "snippet": "Gmail credentials missing. Check backend/ directory.", 
+            "sender": "System <admin@cockpit.local>", 
+            "subject": "Authentication Required", 
+            "date": "Mon, 1 Jan 2024 00:00:00 +0000",
+            "link": "#"
+        }]
 
     # 4. Fetch Environmental Data
     env_data = weather_api.get_environmental_data()

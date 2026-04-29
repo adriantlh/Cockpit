@@ -31,8 +31,8 @@ def get_credentials():
             token.write(creds.to_json())
     return creds
 
-def get_calendar_events(max_results=10):
-    """Lists the next 10 events on the user's primary calendar."""
+def get_calendar_events(max_results=25):
+    """Lists the next 25 events on the user's primary calendar."""
     try:
         creds = get_credentials()
         if not creds: return []
@@ -48,25 +48,42 @@ def get_calendar_events(max_results=10):
         print(f"An error occurred: {e}")
         return []
 
-def get_gmail_highlights(query="is:unread", max_results=5):
-    """Lists unread messages from Gmail."""
+def get_gmail_highlights(query="is:unread -category:promotions -category:social", max_results=5):
+    """Lists unread messages from Gmail with metadata, with a fallback if primary query fails."""
     try:
         creds = get_credentials()
+        if not creds: return []
         service = build('gmail', 'v1', credentials=creds)
 
         results = service.users().messages().list(userId='me', q=query, maxResults=max_results).execute()
         messages = results.get('messages', [])
 
+        # Fallback if no results with the filtered query
+        if not messages:
+            results = service.users().messages().list(userId='me', q="is:unread", maxResults=max_results).execute()
+            messages = results.get('messages', [])
+
         highlights = []
         for msg in messages:
-            txt = service.users().messages().get(userId='me', id=msg['id']).execute()
+            msg_data = service.users().messages().get(userId='me', id=msg['id']).execute()
+
+            headers = msg_data.get('payload', {}).get('headers', [])
+            subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), "No Subject")
+            sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), "Unknown Sender")
+            date = next((h['value'] for h in headers if h['name'].lower() == 'date'), "")
+
             highlights.append({
                 'id': msg['id'],
-                'snippet': txt.get('snippet', '')
+                'threadId': msg_data.get('threadId'),
+                'snippet': msg_data.get('snippet', ''),
+                'sender': sender,
+                'subject': subject,
+                'date': date,
+                'link': f"https://mail.google.com/mail/u/0/#inbox/{msg['id']}"
             })
         return highlights
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred in get_gmail_highlights: {e}")
         return []
 
 import base64
